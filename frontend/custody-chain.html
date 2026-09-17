@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EviTrace — Custody Chain</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+    nav {
+      background: #1a1d27; border-bottom: 1px solid #2d3148;
+      padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 18px; font-weight: 700; color: #6ee7b7; letter-spacing: 2px; cursor: pointer; }
+    .nav-user { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #94a3b8; }
+    .nav-user span { color: #e2e8f0; font-weight: 600; }
+    .btn-logout { background: transparent; border: 1px solid #2d3148; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .btn-logout:hover { border-color: #ef4444; color: #ef4444; }
+
+    main { padding: 32px; max-width: 900px; margin: 0 auto; }
+
+    .back-link { color: #64748b; font-size: 13px; cursor: pointer; margin-bottom: 24px; display: inline-block; }
+    .back-link:hover { color: #6ee7b7; }
+
+    .evidence-header {
+      background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px;
+      padding: 24px 28px; margin-bottom: 16px;
+    }
+    .evidence-header h1 { font-size: 18px; color: #6ee7b7; margin-bottom: 8px; }
+    .hash-display {
+      font-family: monospace; font-size: 12px; color: #64748b;
+      background: #0f1117; padding: 8px 12px; border-radius: 6px;
+      word-break: break-all; margin-top: 8px;
+    }
+
+    .integrity-banner {
+      padding: 14px 20px; border-radius: 8px; margin-bottom: 28px;
+      font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px;
+    }
+    .integrity-ok      { background: #0d2818; border: 1px solid #166534; color: #6ee7b7; }
+    .integrity-fail    { background: #2d0f0f; border: 1px solid #991b1b; color: #fca5a5; }
+    .integrity-loading { background: #1a1d27; border: 1px solid #2d3148; color: #64748b; }
+
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    h2 { font-size: 16px; font-weight: 600; }
+
+    .btn-new { background: #6ee7b7; color: #0f1117; border: none; padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-new:hover { background: #34d399; }
+
+    /* Timeline */
+    .timeline { position: relative; padding-left: 32px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 10px; top: 0; bottom: 0;
+      width: 2px; background: #2d3148;
+    }
+
+    .timeline-item {
+      position: relative; margin-bottom: 24px;
+      background: #1a1d27; border: 1px solid #2d3148;
+      border-radius: 10px; padding: 20px 24px;
+    }
+
+    .timeline-item::before {
+      content: ''; position: absolute; left: -27px; top: 24px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #6ee7b7; border: 2px solid #0f1117;
+    }
+
+    .timeline-action {
+      font-size: 13px; font-weight: 700; color: #6ee7b7;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+
+    .timeline-meta {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      font-size: 12px; color: #64748b; margin-bottom: 10px;
+    }
+
+    .timeline-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .timeline-notes {
+      font-size: 13px; color: #94a3b8;
+      background: #0f1117; padding: 8px 12px; border-radius: 6px;
+      margin-top: 8px;
+    }
+
+    .timeline-hash {
+      font-family: monospace; font-size: 11px; color: #334155;
+      margin-top: 8px; word-break: break-all;
+    }
+
+    .empty-state { text-align: center; padding: 48px; color: #64748b; font-size: 14px; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 32px; width: 460px; }
+    .modal h3 { font-size: 16px; margin-bottom: 24px; color: #6ee7b7; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; }
+    select, textarea { width: 100%; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; padding: 10px 14px; color: #e2e8f0; font-size: 13px; outline: none; }
+    select:focus, textarea:focus { border-color: #6ee7b7; }
+    select option { background: #1a1d27; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+    .btn-cancel { background: transparent; border: 1px solid #2d3148; color: #94a3b8; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .btn-submit { background: #6ee7b7; color: #0f1117; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo" onclick="window.location.href='dashboard.html'">🔍 EVITRACE</div>
+  <div class="nav-user">
+    <span id="userName"></span>
+    <span id="userRole" style="color:#6ee7b7; font-size:11px;"></span>
+    <button class="btn-logout" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<main>
+  <div class="back-link" onclick="history.back()">← Back</div>
+
+  <div class="evidence-header">
+    <h1 id="evidenceTitle">Loading...</h1>
+    <div style="font-size:13px; color:#64748b;" id="evidenceMeta"></div>
+    <div class="hash-display" id="evidenceHash"></div>
+  </div>
+
+  <div class="integrity-banner integrity-loading" id="integrityBanner">
+    ⏳ Verifying integrity...
+  </div>
+
+  <div class="section-header">
+    <h2>Custody Chain</h2>
+    <button class="btn-new" onclick="openModal()">+ Record Action</button>
+  </div>
+
+  <div class="timeline" id="timeline">
+    <div class="empty-state">Loading chain...</div>
+  </div>
+</main>
+
+<!-- Record Custody Action Modal -->
+<div class="modal-overlay" id="custodyModal">
+  <div class="modal">
+    <h3>🔁 Record Custody Action</h3>
+    <div class="form-group">
+      <label>Action</label>
+      <select id="custodyAction">
+        <option value="COLLECTED">Collected</option>
+        <option value="TRANSFERRED">Transferred</option>
+        <option value="EXAMINED">Examined</option>
+        <option value="RETURNED">Returned</option>
+        <option value="SUBMITTED">Submitted to Court</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="custodyNotes" rows="3" placeholder="Reason or details..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-submit" onclick="recordAction()">Record</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8080';
+  const token = localStorage.getItem('token');
+  if (!token) window.location.href = 'login.html';
+
+  document.getElementById('userName').textContent = localStorage.getItem('userName') || '';
+  document.getElementById('userRole').textContent = localStorage.getItem('userRole') || '';
+
+  const params = new URLSearchParams(window.location.search);
+  const evidenceId = params.get('id');
+  if (!evidenceId) window.location.href = 'dashboard.html';
+
+  const ACTION_LABELS = {
+    COLLECTED:   '📦 Collected',
+    TRANSFERRED: '🔁 Transferred',
+    EXAMINED:    '🔬 Examined',
+    RETURNED:    '📥 Returned',
+    SUBMITTED:   '⚖️ Submitted to Court'
+  };
+
+  loadChain();
+  verifyIntegrity();
+
+  async function loadChain() {
+    try {
+      const res = await fetch(`${API}/api/custody/evidence/${evidenceId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const chain = await res.json();
+      const timeline = document.getElementById('timeline');
+
+      if (chain.length === 0) {
+        timeline.innerHTML = `<div class="empty-state">No custody records yet.</div>`;
+        return;
+      }
+
+      // Set evidence info from first record
+      document.getElementById('evidenceTitle').textContent = chain[0].evidenceTitle;
+      document.getElementById('evidenceMeta').textContent  = `Evidence ID: ${evidenceId}`;
+      document.getElementById('evidenceHash').textContent  = 'SHA-256: ' + chain[0].integrityHash;
+
+      timeline.innerHTML = chain.map((c, i) => `
+        <div class="timeline-item">
+          <div class="timeline-action">${ACTION_LABELS[c.action] || c.action}</div>
+          <div class="timeline-meta">
+            <span>👤 ${c.actorName}</span>
+            <span>🕐 ${new Date(c.timestamp).toLocaleString()}</span>
+          </div>
+          ${c.notes ? `<div class="timeline-notes">${c.notes}</div>` : ''}
+          <div class="timeline-hash">Hash: ${c.integrityHash}</div>
+        </div>
+      `).join('');
+    } catch(e) { console.error(e); }
+  }
+
+  async function verifyIntegrity() {
+    try {
+      const res = await fetch(`${API}/api/custody/evidence/${evidenceId}/verify`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const banner = document.getElementById('integrityBanner');
+
+      if (data.integrityVerified) {
+        banner.className = 'integrity-banner integrity-ok';
+        banner.textContent = '✅ Integrity Verified — All custody records have consistent hashes. Evidence is unaltered.';
+      } else {
+        banner.className = 'integrity-banner integrity-fail';
+        banner.textContent = '⚠️ INTEGRITY FAILURE — Hash mismatch detected. Evidence may have been tampered with.';
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  function openModal() {
+    document.getElementById('custodyModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('custodyModal').classList.remove('active');
+  }
+
+  async function recordAction() {
+    const action = document.getElementById('custodyAction').value;
+    const notes  = document.getElementById('custodyNotes').value.trim();
+
+    try {
+      const res = await fetch(`${API}/api/custody`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ evidenceId: parseInt(evidenceId), action, notes })
+      });
+
+      if (!res.ok) { alert('Failed to record action.'); return; }
+
+      closeModal();
+      loadChain();
+      verifyIntegrity();
+    } catch(e) { alert('Error connecting to server.'); }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+</script>
+
+</body>
+</html>

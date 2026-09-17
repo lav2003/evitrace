@@ -1,0 +1,16 @@
+package com.evitrace.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+@Data
+public class CreateCaseRequest {
+
+    @NotBlank(message = "Case number is required")
+    private String caseNumber;
+
+    @NotBlank(message = "Title is required")
+    private String title;
+
+    private String description;
+}
